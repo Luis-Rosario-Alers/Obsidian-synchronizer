@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import sys
@@ -33,5 +34,29 @@ def load_config(config_path: str = "config.json") -> dict:
     return config
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Obsidian <-> Google Drive sync tool"
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--push", action="store_true", help="Upload local changes to Drive")
+    group.add_argument("--pull", action="store_true", help="Download latest files from Drive")
+    return parser.parse_args()
+
+
+def run_push() -> None:
+    print("[PUSH] Push mode activated.")
+
+
+def run_pull() -> None:
+    print("[PULL] Pull mode activated.")
+
+
 if __name__ == "__main__":
+    args = parse_args()
     config = load_config()
+
+    if args.push:
+        run_push()
+    elif args.pull:
+        run_pull()
