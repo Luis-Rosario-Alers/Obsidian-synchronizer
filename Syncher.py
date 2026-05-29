@@ -72,7 +72,9 @@ def load_config(config_path: str = "config.json") -> dict:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Obsidian vault synchronizer")
+    parser = argparse.ArgumentParser(
+        description="Obsidian <-> Google Drive sync tool"
+    )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--push", action="store_true", help="Upload local changes to Drive")
     group.add_argument("--pull", action="store_true", help="Download remote changes from Drive")
@@ -80,11 +82,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def run_push(config: dict, creds: Credentials) -> None:
-    pass  # stub — upload logic goes here
+    print("[PUSH] Push mode activated.")
 
 
 def run_pull(config: dict, creds: Credentials) -> None:
-    pass  # stub — download logic goes here
+    print("[PULL] Pull mode activated.")
 
 
 def main() -> None:
@@ -93,9 +95,9 @@ def main() -> None:
     config = load_config()
 
     if args.push:
-        run_push()
+        run_push(config, creds)
     elif args.pull:
-        run_pull()
+        run_pull(config, creds)
 
 
 if __name__ == "__main__":
