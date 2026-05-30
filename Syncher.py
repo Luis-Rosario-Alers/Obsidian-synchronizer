@@ -2,14 +2,7 @@ import argparse
 import json
 import os
 import sys
-
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-
-SCOPES = ["https://www.googleapis.com/auth/drive"]
-CREDENTIALS_FILE = "credentials.json"
-TOKEN_FILE = "token.json"
+from drive_client import DriveClient, DriveClientError
 
 REQUIRED_FIELDS = [
     "vault_path",
@@ -18,36 +11,6 @@ REQUIRED_FIELDS = [
     "backup_on_overwrite",
     "pull_delete_local_extras",
 ]
-
-
-def authenticate() -> Credentials:
-    creds = None
-
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(Request())
-            except Exception:
-                os.remove(TOKEN_FILE)
-                creds = None
-
-        if not creds:
-            if not os.path.exists(CREDENTIALS_FILE):
-                sys.exit(
-                    "credentials.json not found. "
-                    "Download it from your Google Cloud project and place it in the project root."
-                )
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-
-        with open(TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
-
-    return creds
-
 
 def load_config(config_path: str = "config.json") -> dict:
     try:
@@ -81,23 +44,24 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_push(config: dict, creds: Credentials) -> None:
+def run_push(config: dict, client: DriveClient) -> None:
     print("[PUSH] Push mode activated.")
 
 
-def run_pull(config: dict, creds: Credentials) -> None:
+def run_pull(config: dict, client: DriveClient) -> None:
     print("[PULL] Pull mode activated.")
 
 
 def main() -> None:
     args = parse_args()
-    creds = authenticate()
+    client = DriveClient(credentials_path="credentials.json", token_path="token.json")
+    client.authenticate()
     config = load_config()
 
     if args.push:
-        run_push(config, creds)
+        run_push(config, client)
     elif args.pull:
-        run_pull(config, creds)
+        run_pull(config, client)
 
 
 if __name__ == "__main__":
