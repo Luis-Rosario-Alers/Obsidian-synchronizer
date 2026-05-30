@@ -59,10 +59,11 @@ def start_watcher(vault_path: str, upload_queue: queue.Queue, debounce_seconds: 
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
+        pass
+    finally:
         observer.stop()
-
-    observer.join()
-    logging.info("Watcher stopped.")
+        observer.join()
+        logging.info("Watcher stopped.")
 
 
 def placeholder_consumer(upload_queue: queue.Queue) -> None:
