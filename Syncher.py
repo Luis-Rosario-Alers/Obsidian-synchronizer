@@ -4,9 +4,9 @@ import logging
 import os
 import queue
 import sys
-import threading
 from src.drive_client import DriveClient, DriveClientError
-from src.watcher import start_watcher, placeholder_consumer
+from src.uploader import Uploader
+from src.watcher import start_watcher
 
 REQUIRED_FIELDS = [
     "vault_path",
@@ -50,13 +50,12 @@ def parse_args() -> argparse.Namespace:
 
 def run_push(config: dict, client: DriveClient) -> None:
     upload_queue = queue.Queue()
-    consumer_thread = threading.Thread(
-        target=placeholder_consumer,
-        args=(upload_queue,),
-        daemon=True,
-    )
-    consumer_thread.start()
-    start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"])
+    uploader = Uploader(upload_queue, client, config["drive_folder_id"], config["vault_path"])
+    uploader.start()
+    try:
+        start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"])
+    finally:
+        uploader.stop()
 
 
 def run_pull(config: dict, client: DriveClient) -> None:

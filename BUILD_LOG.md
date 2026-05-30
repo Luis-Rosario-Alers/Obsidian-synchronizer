@@ -496,7 +496,7 @@ Acceptance Criteria
 - Verification: Use my real remote obsidian folder as my `google_drive_folder_id` and see if local changes are reflected on my Google Drive.
 - One thing I learned: Its better to tweak the brief for a few more minutes to get exactly what you want than to generate mediocre code that doesn do exactly what you want it to do.
 
-## Task 3 — <TASK_NAME>
+## Task 8 — <TASK_NAME>
 
 - Brief: [link or paste]
 - What Claude proposed: [1-2 lines]
