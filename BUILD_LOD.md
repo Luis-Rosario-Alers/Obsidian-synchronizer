@@ -84,9 +84,10 @@ Before marking this task done, verify all of the following manually:
 - Verification: Created a test file that would upload a file to the specific Google Drive folder
 - One thing I learned: it is pivitol to give the AI detailed context as it will sometimes assume what you want incorrectly.
 
-## Task 3 — <short name>
-- Brief: 
-
+## Task 4 — Add Configuration File Support
+- Brief:
+-  
+```
 Engineering Brief: config.json — Configuration File
 
 Overview
@@ -160,8 +161,85 @@ Acceptance Criteria
  Running main.py with an empty drive_folder_id exits with a clear error message.
  No module other than main.py opens or reads config.json directly.
  config.json, token.json, and credentials.json are all listed in .gitignore.
+```
 
 - What Claude proposed: A configuration file that holds information such as Google Drive folder ID, absolute path of vault, and other options.
 - What I changed before approving: I changed some of the configuration handling to make sure it is more robust in terms of error handling.
 - Verification: Run `Syncher.py` and purposefully make mistakes in the configuration to ensure there is proper error handling.
 - One thing I learned: It is important to make sure the brief to have context of previous tasks so that the brief has continuity with the actual project.
+
+## Task 5 — Allow `Syncher.py` to parse CLI arguments `--push` and `--pull`
+- Brief: 
+```
+Engineering Brief: Extending Syncher.py — CLI Argument Parsing
+
+Overview
+Your task is to extend the existing Syncher.py file to support two command line arguments: --push and --pull. The file already exists with OAuth authentication logic from the previous brief — do not remove or modify any of that existing code. You are only adding argument parsing on top of what is already there.
+Estimated time: 2–3 hours.
+
+Expected Usage
+bashpython Syncher.py --push
+python Syncher.py --pull
+
+What To Add
+At the top of the file, add the argparse import alongside the existing imports:
+pythonimport argparse
+Then add the following two functions anywhere below the existing authenticate() function, before main():
+pythondef parse_args():
+    parser = argparse.ArgumentParser(
+        description="Obsidian <-> Google Drive sync tool"
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--push", action="store_true", help="Upload local changes to Drive")
+    group.add_argument("--pull", action="store_true", help="Download latest files from Drive")
+    return parser.parse_args()
+
+def run_push():
+    print("[PUSH] Push mode activated.")
+
+def run_pull():
+    print("[PULL] Pull mode activated.")
+Finally, update the existing main() function to call parse_args() and route to the correct mode. Authentication should still run first, before either mode is launched:
+pythondef main():
+    args = parse_args()       # new — parse CLI arguments first
+    creds = authenticate()    # existing — must still run before anything else
+
+    if args.push:
+        run_push()
+    elif args.pull:
+        run_pull()
+
+What Not To Touch
+
+Do not remove or modify the existing authenticate() function.
+Do not remove or modify the existing token.json logic.
+Do not move or rename the file.
+
+
+What Not To Do
+
+Do not implement any sync logic inside this file.
+Do not use sys.argv directly — use argparse only.
+Do not accept any arguments other than --push and --pull at this stage.
+
+
+Acceptance Criteria
+
+ The existing OAuth authentication behaviour is completely unchanged.
+ Running python Syncher.py --push authenticates and then prints [PUSH] Push mode activated.
+ Running python Syncher.py --pull authenticates and then prints [PULL] Pull mode activated.
+ Running python Syncher.py with no arguments prints a usage message and exits cleanly.
+ Running python Syncher.py --push --pull prints a usage message and exits cleanly.
+ ```
+- What Claude Proposed: Use `argparse` standard library import to capture CLI arguments
+- What I changed before approving: Changed `Syncher.py` to use the `authenticate()` method from the dedicated `drive_client.py` instead of its own authenticate function.
+- Verification: Ran `Syncher.py` in both `--push` and `--pull` mode and they printed the correct outputs.
+- One thing I learned: Its very easy to get caught up with the AI generating everything so its very important to check the results carefully before moving on.
+
+
+## Task 3 — <short name>
+- Brief: [link or paste]
+- What Claude proposed: [1-2 lines]
+- What I changed before approving: [1-2 lines]
+- Verification: [what you ran or clicked to confirm it works]
+- One thing I learned: ...
