@@ -23,6 +23,7 @@ The program is split into focused modules orchestrated by `Syncher.py`:
 
 - `Syncher.py` — Entry point; parses `--push`/`--pull` CLI args, initializes OAuth, coordinates all components
 - `watcher.py` — `watchdog`-based file system monitor; enqueues changed files for upload
+- `drive_client.py` - Google Drive API Client wrapper
 - `uploader.py` — Daemon thread; drains the upload queue and writes to Google Drive
 - `puller.py` — Downloads remote Drive files to the local vault
 - `process_monitor.py` — `psutil`-based monitor; shuts down cleanly when the Obsidian process exits and the upload queue is empty
