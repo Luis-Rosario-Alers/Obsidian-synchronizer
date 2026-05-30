@@ -1,5 +1,6 @@
 ## Task 3 — Google Drive API wrapper file
 - Brief: 
+```
 Engineering Brief: drive_client.py — Google Drive API Wrapper
 
 Overview
@@ -78,7 +79,7 @@ Before marking this task done, verify all of the following manually:
  download_file() creates intermediate directories if they do not exist locally.
  Passing an invalid folder ID raises DriveClientError with a clear message.
  All log output uses logging, not print().
-
+```
 - What Claude proposed:  `drive_client.py` Google Drive API Wrapper file
 - What I changed before approving: Some aspects of how the wrapper file would handle errors
 - Verification: Created a test file that would upload a file to the specific Google Drive folder
@@ -237,7 +238,160 @@ Acceptance Criteria
 - One thing I learned: Its very easy to get caught up with the AI generating everything so its very important to check the results carefully before moving on.
 
 
-## Task 3 — <short name>
+## Task 6 — Create `watcher.py` for file modification overwatch
+
+- Brief:
+```
+  Engineering Brief: watcher.py — File System Monitoring
+
+Overview
+Your task is to create watcher.py, which monitors the local Obsidian vault for any file changes and reacts to them. It uses the watchdog library to listen for file system events in real time. When a file is created or modified, the watcher places the affected file path onto a shared queue so the upload worker (built in a later brief) can process it. For now the queue consumer is a placeholder that simply prints the detected change.
+Estimated time: 1–2 days.
+
+Installation
+watchdog is a third party library and must be installed:
+bashpip install watchdog
+
+How watchdog Works
+watchdog works by attaching an Observer to a directory and passing it an event handler class. The event handler defines methods that are called automatically when the file system changes. The Observer runs on its own thread, so the rest of the program remains unblocked while it listens.
+The three event types to handle are:
+EventTriggeron_createdA new file appears in the vaulton_modifiedAn existing file is saved with changeson_movedA file or folder is renamed or moved
+Deletions are intentionally ignored at this stage.
+
+Implementation
+1. Install and import the required watchdog classes:
+pythonfrom watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import queue
+import time
+import logging
+1. Create the event handler class:
+pythonclass VaultEventHandler(FileSystemEventHandler):
+    def __init__(self, upload_queue):
+        self.upload_queue = upload_queue
+
+    def on_created(self, event):
+        if not event.is_directory:
+            logging.info(f"File created: {event.src_path}")
+            self.upload_queue.put(event.src_path)
+
+    def on_modified(self, event):
+        if not event.is_directory:
+            logging.info(f"File modified: {event.src_path}")
+            self.upload_queue.put(event.src_path)
+
+    def on_moved(self, event):
+        if not event.is_directory:
+            logging.info(f"File moved: {event.src_path} -> {event.dest_path}")
+            self.upload_queue.put(event.dest_path)
+1. Create the watcher startup function:
+pythondef start_watcher(vault_path, upload_queue):
+    event_handler = VaultEventHandler(upload_queue)
+    observer = Observer()
+    observer.schedule(event_handler, path=vault_path, recursive=True)
+    observer.start()
+    logging.info(f"Watching vault at: {vault_path}")
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+1. Add a placeholder queue consumer for testing purposes only. This simulates what the upload worker will do in a later brief and should be removed once uploader.py is connected:
+pythondef placeholder_consumer(upload_queue):
+    while True:
+        path = upload_queue.get()
+        print(f"[QUEUE] Would upload: {path}")
+        upload_queue.task_done()
+1. Wire into Syncher.py by updating run_push():
+pythonimport queue
+import threading
+from sync.watcher import start_watcher, placeholder_consumer
+
+def run_push(config, creds):
+    upload_queue = queue.Queue()
+    consumer_thread = threading.Thread(
+        target=placeholder_consumer,
+        args=(upload_queue,),
+        daemon=True
+    )
+    consumer_thread.start()
+    start_watcher(config["vault_path"], upload_queue)
+
+Debouncing
+watchdog often fires multiple events in quick succession for a single save — for example a text editor may write a temp file and then rename it, producing two or three events for one user action. To avoid uploading the same file multiple times, implement a simple debounce inside VaultEventHandler:
+
+Record the last time each file path was enqueued in a dictionary.
+Only enqueue a path if at least debounce_seconds have passed since it was last enqueued.
+Read debounce_seconds from the config dictionary passed into the handler.
+
+pythonimport time
+
+class VaultEventHandler(FileSystemEventHandler):
+    def __init__(self, upload_queue, debounce_seconds):
+        self.upload_queue = upload_queue
+        self.debounce_seconds = debounce_seconds
+        self._last_enqueued = {}
+
+    def _enqueue(self, path):
+        now = time.time()
+        last = self._last_enqueued.get(path, 0)
+        if now - last >= self.debounce_seconds:
+            self._last_enqueued[path] = now
+            self.upload_queue.put(path)
+            logging.info(f"Enqueued: {path}")
+
+    def on_created(self, event):
+        if not event.is_directory:
+            self._enqueue(event.src_path)
+
+    def on_modified(self, event):
+        if not event.is_directory:
+            self._enqueue(event.src_path)
+
+    def on_moved(self, event):
+        if not event.is_directory:
+            self._enqueue(event.dest_path)
+
+Logging
+Use Python's logging module throughout. No print() calls except inside the temporary placeholder_consumer. Log the following:
+EventLevelWatcher started successfullyINFOFile path enqueuedINFOFile event fired but debouncedDEBUGWatcher stoppedINFO
+
+What Not to Do
+
+Do not implement any upload logic inside this file. Its only job is to detect changes and enqueue file paths.
+Do not read config.json directly — accept the config dictionary as a function argument.
+Do not handle file deletions at this stage.
+Do not remove the debounce — without it the uploader will receive a flood of duplicate events on every save.
+
+
+Acceptance Criteria
+
+ Running python Syncher.py --push starts the watcher and logs the vault path being watched.
+ Modifying a file inside the vault prints [QUEUE] Would upload: followed by the file path.
+ Creating a new file inside the vault triggers the same output.
+ Modifying the same file twice within debounce_seconds only produces one queue entry.
+ Modifying a file outside the vault directory produces no output.
+ Directory events (creating or renaming a folder) produce no output.
+ Pressing Ctrl+C stops the watcher cleanly with no exception stack trace.
+You said: Why did you do this?excerpt_from_previous_claude_message.txt1 linetxtWhy did you do this? wouldnt this mean that any changes to directories would be ignored?11:45 a. m.Claude responded: Yes, exactly — that is intentional.Yes, exactly — that is intentional. Here is why:
+In the context of this project, the watcher only needs to react to file changes, not directory changes. Directories themselves do not contain note content — the markdown files inside them do. So when a folder is created, renamed, or moved inside the vault, there is nothing to upload yet. The relevant event will come when a file inside that folder is created or modified, and that event is what gets enqueued.
+Concretely, if you create a new folder called Projects/ in your vault and then create a note inside it called ideas.md, two events fire:
+
+A directory created event for Projects/ — ignored
+A file created event for Projects/ideas.md — enqueued and uploaded
+
+The upload worker then handles creating the Projects/ folder on Google Drive as part of uploading ideas.md, so the folder structure is still mirrored correctly in the cloud. The folder does not need its own event to make that happen.
+If directory events were not filtered out, the watcher would enqueue folder paths alongside file paths, and the uploader would then try to upload a directory as if it were a file, which would cause an error.
+```
+
+- What Claude proposed: Using the `watchdog` library to watch for file modifications
+- What I changed before approving: Added thread locking to stop simultaneous write and read of the `self._last_enqueued` dictionary
+- Verification: Modified files within the specified vault path in my `config.json` and looked for logging notifications of file modifications
+- One thing I learned: `claude.ai` and `gemini` code review is very useful for finding small technical errors that could, over time, increase the technical debt of the project.
+
+## Task 7 — 
 - Brief: [link or paste]
 - What Claude proposed: [1-2 lines]
 - What I changed before approving: [1-2 lines]

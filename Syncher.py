@@ -1,8 +1,12 @@
 import argparse
 import json
+import logging
 import os
+import queue
 import sys
-from drive_client import DriveClient, DriveClientError
+import threading
+from src.drive_client import DriveClient, DriveClientError
+from src.watcher import start_watcher, placeholder_consumer
 
 REQUIRED_FIELDS = [
     "vault_path",
@@ -45,17 +49,24 @@ def parse_args() -> argparse.Namespace:
 
 
 def run_push(config: dict, client: DriveClient) -> None:
-    print("[PUSH] Push mode activated.")
+    upload_queue = queue.Queue()
+    consumer_thread = threading.Thread(
+        target=placeholder_consumer,
+        args=(upload_queue,),
+        daemon=True,
+    )
+    consumer_thread.start()
+    start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"])
 
 
 def run_pull(config: dict, client: DriveClient) -> None:
-    print("[PULL] Pull mode activated.")
+    logging.info("[PULL] Pull mode activated.")  # Placeholder for actual pull logic
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     args = parse_args()
     client = DriveClient(credentials_path="credentials.json", token_path="token.json")
-    client.authenticate()
     config = load_config()
 
     if args.push:
