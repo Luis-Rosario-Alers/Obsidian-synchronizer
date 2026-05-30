@@ -60,7 +60,7 @@ def run_push(config: dict, client: DriveClient) -> None:
 
 
 def run_pull(config: dict, client: DriveClient) -> None:
-    print("[PULL] Pull mode activated.") # <-- Placeholder for actual pull logic
+    logging.info("[PULL] Pull mode activated.")  # Placeholder for actual pull logic
 
 
 def main() -> None:
