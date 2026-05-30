@@ -67,7 +67,6 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     args = parse_args()
     client = DriveClient(credentials_path="credentials.json", token_path="token.json")
-    client.authenticate()
     config = load_config()
 
     if args.push:
