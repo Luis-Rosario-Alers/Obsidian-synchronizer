@@ -16,8 +16,9 @@ class VaultEventHandler(FileSystemEventHandler):
         self._lock = threading.Lock()
 
     def _enqueue(self, path: str) -> None:
-        if ".obsidian" in path or ".smart-env" in path or ".trash" in path:
-            logging.debug(f"Ignored (obsidian metadata): {path}")
+        parts = path.replace("\\", "/").split("/")
+        if any(part in {".obsidian", ".smart-env", ".trash"} for part in parts):
+            logging.debug("Ignored (vault metadata): %s", path)
             return
         
         now = time.time()
