@@ -1,5 +1,5 @@
 import logging
-from drive_client import DriveClient, DriveClientError
+from src.drive_client import DriveClient, DriveClientError
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
