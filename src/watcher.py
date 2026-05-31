@@ -48,7 +48,7 @@ class VaultEventHandler(FileSystemEventHandler):
             self._enqueue(event.dest_path)
     
 
-def start_watcher(vault_path: str, upload_queue: queue.Queue, debounce_seconds: float) -> None:
+def start_watcher(vault_path: str, upload_queue: queue.Queue, debounce_seconds: float, shutdown_event: threading.Event) -> None:
     event_handler = VaultEventHandler(upload_queue, debounce_seconds)
     observer = Observer()
     observer.schedule(event_handler, path=vault_path, recursive=True)
@@ -56,10 +56,10 @@ def start_watcher(vault_path: str, upload_queue: queue.Queue, debounce_seconds: 
     logging.info(f"Watching vault at: {vault_path}")
 
     try:
-        while True:
+        while not shutdown_event.is_set():
             time.sleep(1)
     except KeyboardInterrupt:
-        pass
+        logging.info("Keyboard interrupt received. Shutting down watcher.")
     finally:
         observer.stop()
         observer.join()

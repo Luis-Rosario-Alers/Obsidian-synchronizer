@@ -1,4 +1,4 @@
-## Task 3 — Google Drive API wrapper file
+## Task 1 — Google Drive API wrapper file
 - Brief: 
 ```
 Engineering Brief: drive_client.py — Google Drive API Wrapper
@@ -85,7 +85,7 @@ Before marking this task done, verify all of the following manually:
 - Verification: Created a test file that would upload a file to the specific Google Drive folder
 - One thing I learned: it is pivitol to give the AI detailed context as it will sometimes assume what you want incorrectly.
 
-## Task 4 — Add Configuration File Support
+## Task 2 — Add Configuration File Support
 - Brief:
 -  
 ```
@@ -169,7 +169,7 @@ Acceptance Criteria
 - Verification: Run `Syncher.py` and purposefully make mistakes in the configuration to ensure there is proper error handling.
 - One thing I learned: It is important to make sure the brief to have context of previous tasks so that the brief has continuity with the actual project.
 
-## Task 5 — Allow `Syncher.py` to parse CLI arguments `--push` and `--pull`
+## Task 3 — Allow `Syncher.py` to parse CLI arguments `--push` and `--pull`
 - Brief: 
 ```
 Engineering Brief: Extending Syncher.py — CLI Argument Parsing
@@ -238,7 +238,7 @@ Acceptance Criteria
 - One thing I learned: Its very easy to get caught up with the AI generating everything so its very important to check the results carefully before moving on.
 
 
-## Task 6 — Create `watcher.py` for file modification overwatch
+## Task 4 — Create `watcher.py` for file modification overwatch
 
 - Brief:
 ```
@@ -391,7 +391,7 @@ If directory events were not filtered out, the watcher would enqueue folder path
 - Verification: Modified files within the specified vault path in my `config.json` and looked for logging notifications of file modifications
 - One thing I learned: `claude.ai` and `gemini` code review is very useful for finding small technical errors that could, over time, increase the technical debt of the project.
 
-## Task 7 — Create `uploader.py` to handle file upload queue
+## Task 5 — Create `uploader.py` to handle file upload queue
 
 - Brief:
 ```
@@ -496,10 +496,107 @@ Acceptance Criteria
 - Verification: Use my real remote obsidian folder as my `google_drive_folder_id` and see if local changes are reflected on my Google Drive.
 - One thing I learned: It's better to tweak the brief for a few more minutes to get exactly what you want than to generate mediocre code that doesn do exactly what you want it to do.
 
-## Task 8 — <TASK_NAME>
+## Task 6 — Create `process_monitor.py` using `psutil`
 
-- Brief: [link or paste]
-- What Claude proposed: [1-2 lines]
-- What I changed before approving: [1-2 lines]
-- Verification: [what you ran or clicked to confirm it works]
-- One thing I learned: ...
+- Brief:
+
+```text
+Engineering Brief: process_monitor.py — Obsidian Process Monitor
+
+Overview
+Your task is to create process_monitor.py, which watches for the Obsidian process using psutil and triggers a clean shutdown of the sync tool when Obsidian closes. It runs on its own thread and signals the watcher to stop, which in turn allows the uploader to drain and exit.
+Estimated time: 1 day.
+
+Installation
+bashpip install psutil
+
+Implementation
+1. Imports:
+pythonimport logging
+import threading
+import time
+import psutil
+2. Create the monitor class:
+pythonclass ProcessMonitor:
+    def __init__(self, shutdown_event: threading.Event, poll_interval: int = 5) -> None:
+        self.shutdown_event = shutdown_event
+        self.poll_interval = poll_interval
+        self._thread: threading.Thread | None = None
+
+    def _is_obsidian_running(self) -> bool:
+        return any(
+            "obsidian" in p.name().lower()
+            for p in psutil.process_iter(["name"])
+        )
+
+    def _run(self) -> None:
+        logging.info("Process monitor started.")
+        while not self.shutdown_event.is_set():
+            if not self._is_obsidian_running():
+                logging.info("Obsidian process not found. Triggering shutdown.")
+                self.shutdown_event.set()
+                break
+            time.sleep(self.poll_interval)
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        if self._thread is None:
+            return
+        self._thread.join()
+        logging.info("Process monitor stopped.")
+3. Wire into Syncher.py by updating run_push():
+The shutdown_event is shared between the process monitor and start_watcher(). When Obsidian closes, the monitor sets the event, which signals the watcher to stop its loop, which unblocks run_push() and allows uploader.stop() to be called via the existing finally block.
+pythondef run_push(config: dict, client: DriveClient) -> None:
+    shutdown_event = threading.Event()
+    upload_queue = queue.Queue()
+
+    uploader = Uploader(upload_queue, client, config["drive_folder_id"], config["vault_path"])
+    monitor = ProcessMonitor(shutdown_event)
+
+    uploader.start()
+    monitor.start()
+    try:
+        start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"], shutdown_event)
+    finally:
+        monitor.stop()
+        uploader.stop()
+4. Update start_watcher() in watcher.py to accept and respect the shutdown_event:
+pythondef start_watcher(vault_path, upload_queue, debounce_seconds, shutdown_event):
+    event_handler = VaultEventHandler(upload_queue, debounce_seconds)
+    observer = Observer()
+    observer.schedule(event_handler, path=vault_path, recursive=True)
+    observer.start()
+    logging.info(f"Watching vault at: {vault_path}")
+    try:
+        while not shutdown_event.is_set():
+            time.sleep(1)
+    finally:
+        observer.stop()
+        observer.join()
+
+Logging
+EventLevelMonitor startedINFOObsidian not found, shutdown triggeredINFOMonitor stoppedINFO
+
+What Not to Do
+
+Do not call uploader.stop() or upload_queue.join() inside this file — shutdown of the uploader is already handled by the finally block in Syncher.py.
+Do not hardcode the process name — keep it as a case-insensitive substring match on "obsidian" to handle platform differences.
+Do not set poll_interval below 5 seconds — polling more frequently than this is unnecessary and wastes CPU.
+
+
+Acceptance Criteria
+
+ Starting python Syncher.py --push with Obsidian open watches the vault normally.
+ Closing Obsidian causes the program to log "Obsidian process not found. Triggering shutdown." and exit cleanly.
+ The uploader fully drains the queue before the program exits.
+ Killing the program with Ctrl+C still exits cleanly via the existing finally block.
+ If Obsidian is not running when the program starts, it shuts down immediately.
+```
+
+- What Claude proposed: Use `psutil` to monitor the obsidian process for when it closes
+- What I changed before approving: I told claude to change the `stop()` method of the `ProcessMonitor` class to set the `shutdown_event` state
+- Verification: Launching the program without obsidian closes the program. Launching the program with obsidian keeps the program running until obsidian closes which terminates the program.
+- One thing I learned: Claude can only review your code so much so manual review is sometimes necessary if you are heavily stuck.
