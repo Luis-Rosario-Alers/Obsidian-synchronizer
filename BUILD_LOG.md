@@ -391,7 +391,113 @@ If directory events were not filtered out, the watcher would enqueue folder path
 - Verification: Modified files within the specified vault path in my `config.json` and looked for logging notifications of file modifications
 - One thing I learned: `claude.ai` and `gemini` code review is very useful for finding small technical errors that could, over time, increase the technical debt of the project.
 
-## Task 7 — 
+## Task 7 — Create `uploader.py` to handle file upload queue
+
+- Brief:
+```
+Engineering Brief: uploader.py — Google Drive Upload Worker
+
+Overview
+Your task is to create uploader.py, a background daemon thread that continuously reads file paths from the shared upload queue and uploads each one to Google Drive. It sits between watcher.py (which detects changes and enqueues paths) and drive_client.py (which handles the actual Drive API calls). When a path appears in the queue, the uploader picks it up and calls DriveClient.upload_file().
+Estimated time: 1–2 days.
+
+How It Fits Together
+At this point in the project the three components of push mode are:
+watcher.py          uploader.py          drive_client.py
+  detects     →      uploads      →       calls Drive API
+  changes           from queue
+uploader.py is the middle piece. It does not detect changes and it does not call the Drive API directly — it delegates both of those responsibilities to the modules on either side of it.
+
+Implementation
+1. Add the required imports:
+pythonimport queue
+import threading
+import logging
+from sync.drive_client import DriveClient, DriveClientError
+2. Create the uploader class:
+pythonclass Uploader:
+    def __init__(self, upload_queue, drive_client, drive_folder_id):
+        self.upload_queue = upload_queue
+        self.drive_client = drive_client
+        self.drive_folder_id = drive_folder_id
+        self._stop_event = threading.Event()
+
+    def start(self):
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+        logging.info("Uploader started.")
+
+    def stop(self):
+        self._stop_event.set()
+        self._thread.join()
+        logging.info("Uploader stopped.")
+
+    def _run(self):
+        while not self._stop_event.is_set():
+            try:
+                path = self.upload_queue.get(timeout=1)
+                self._upload(path)
+                self.upload_queue.task_done()
+            except queue.Empty:
+                continue
+
+    def _upload(self, path):
+        try:
+            self.drive_client.upload_file(path, self.drive_folder_id)
+            logging.info(f"Uploaded: {path}")
+        except DriveClientError as e:
+            logging.error(f"Failed to upload {path}: {e}")
+3. Wire into Syncher.py by updating run_push(), replacing the placeholder consumer from the watcher brief:
+pythonfrom sync.uploader import Uploader
+from sync.drive_client import DriveClient
+from sync.watcher import start_watcher
+import queue
+
+def run_push(config, creds):
+    upload_queue = queue.Queue()
+    drive_client = DriveClient(creds)
+    uploader = Uploader(upload_queue, drive_client, config["drive_folder_id"])
+    uploader.start()
+    start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"])
+    uploader.stop()
+
+Error Handling
+The uploader must never crash due to a failed upload. A single bad upload should be logged and skipped so the queue continues to drain normally. The rules are:
+
+Catch DriveClientError on every upload attempt and log it at ERROR level.
+After a failed upload, continue processing the next item in the queue.
+Do not retry inside the uploader — retries are already handled inside DriveClient.upload_file().
+
+
+Logging
+Use Python's logging module throughout. No print() calls.
+EventLevelUploader startedINFOFile successfully uploadedINFOUpload failedERRORUploader stoppedINFO
+
+What Not to Do
+
+Do not call the Google Drive API directly inside this file. All API interaction goes through DriveClient.
+Do not read config.json directly — accept the config dictionary as a function argument passed in from Syncher.py.
+Do not implement any file watching logic here. That belongs in watcher.py.
+Do not remove the timeout=1 on queue.get() — without it the thread blocks indefinitely and the stop signal is never checked.
+
+
+Acceptance Criteria
+
+ Running python Syncher.py --push starts the uploader daemon thread and logs Uploader started.
+ Modifying a file in the vault results in that file being uploaded to the correct Drive folder.
+ The uploaded file is visible in Google Drive within a few seconds of the local change.
+ A simulated upload failure (temporarily pass an invalid drive_folder_id) logs an error but does not crash the program.
+ Subsequent files in the queue are still uploaded after a failed upload.
+ Stopping the program logs Uploader stopped. and exits cleanly.
+```
+
+- What Claude proposed: Use a separate "uploader" thread that sequentially uploads every file in the uploader queue (files that have been marked as "modified" by `watcher.py` file overwatch)
+- What I changed before approving: Changed the plan to include full folder structure mirroring to the remote obsidian vault. Ex. a file in the `Finance` folder changes, that same change should be reflected in that same folder within my remote vault.
+- Verification: Use my real remote obsidian folder as my `google_drive_folder_id` and see if local changes are reflected on my Google Drive.
+- One thing I learned: It's better to tweak the brief for a few more minutes to get exactly what you want than to generate mediocre code that doesn do exactly what you want it to do.
+
+## Task 8 — <TASK_NAME>
+
 - Brief: [link or paste]
 - What Claude proposed: [1-2 lines]
 - What I changed before approving: [1-2 lines]
