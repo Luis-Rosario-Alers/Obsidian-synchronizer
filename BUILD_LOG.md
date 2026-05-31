@@ -83,7 +83,7 @@ Before marking this task done, verify all of the following manually:
 - What Claude proposed:  `drive_client.py` Google Drive API Wrapper file
 - What I changed before approving: Some aspects of how the wrapper file would handle errors
 - Verification: Created a test file that would upload a file to the specific Google Drive folder
-- One thing I learned: it is pivitol to give the AI detailed context as it will sometimes assume what you want incorrectly.
+- One thing I learned: it is pivotal to give the AI detailed context as it will sometimes assume what you want incorrectly.
 
 ## Task 2 — Add Configuration File Support
 - Brief:
@@ -600,3 +600,13 @@ Acceptance Criteria
 - What I changed before approving: I told claude to change the `stop()` method of the `ProcessMonitor` class to set the `shutdown_event` state
 - Verification: Launching the program without obsidian closes the program. Launching the program with obsidian keeps the program running until obsidian closes which terminates the program.
 - One thing I learned: Claude can only review your code so much so manual review is sometimes necessary if you are heavily stuck.
+
+## Reflection
+
+1) The agentic workflow let me ship more than I could alone because I was able to much more quickly understand the codebase and implement features based on already existing code, allowing me to push more changes than I usually would be able to. Additionally, I saved a lot more time on reviewing because I was able to collaboratively code review with AI to catch bugs before they became dangerous.
+
+2) I intervened when Claude tried to edit multiple files that were not part of the scope of the current task or when functions were needlessly complicated and could be simplified for readability
+
+3) This project revealed that my own judgement is one of the most important things when it comes to building a successful project with the assistance of AI since it allowed me to approve what was good and disapprove what was either out of scope, needlessly complicated, or did not follow project conventions. Additionally, my own knowledge gaps about the technologies being used was something that was actually still applicable to the project because even with AI one has to understand the overall logic and technologies being used to effectively orchestrate agents to carry out atomic tasks within that project. For example, understanding query formation, and how pivotal it is for local and remote filenames to be the same, within the Google Drive API was necessary for my project to understand why filenames with single quotes ended up returning `malformed query` errors, so by understanding query formation, I was able to direct the AI agent to fix the code within the appropriate file and reduce the chances of creating another bug/error dramatically. Essentially, I was able to use my knowledge of how the Google Drive API expects queries to be formed in order to get the AI agent to quickly apply a fix within a minute, which would've taken me maybe 5 minutes of docs searching beforehand to implement, saving me time.
+
+4) I will bring this workflow into my internship by setting up visual studio code, claude code, and gemini cli on my computer to ensure that I have all the tools necessary to conduct this workflow. The first thing I will do on day one is configure these tools and give them the context they need to succeed in the projects given to us. However, if there are security practices or onboarding rules that are on the stricter side, I can still use skills learned in this AI cohort such as task decomposition and higher-level AI planning through claude.ai to scaffold and decompose a project into its individual components to make development much easier and straightforward.
