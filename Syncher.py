@@ -4,7 +4,9 @@ import logging
 import os
 import queue
 import sys
+import threading
 from src.drive_client import DriveClient, DriveClientError
+from src.process_monitor import ProcessMonitor
 from src.uploader import Uploader
 from src.watcher import start_watcher
 
@@ -49,12 +51,18 @@ def parse_args() -> argparse.Namespace:
 
 
 def run_push(config: dict, client: DriveClient) -> None:
+    shutdown_event = threading.Event()
     upload_queue = queue.Queue()
+
     uploader = Uploader(upload_queue, client, config["drive_folder_id"], config["vault_path"])
+    monitor = ProcessMonitor(shutdown_event)
+    
     uploader.start()
+    monitor.start()
     try:
-        start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"])
+        start_watcher(config["vault_path"], upload_queue, config["debounce_seconds"], shutdown_event)
     finally:
+        monitor.stop()
         uploader.stop()
 
 
