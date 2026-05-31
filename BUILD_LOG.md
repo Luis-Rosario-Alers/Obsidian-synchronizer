@@ -491,10 +491,10 @@ Acceptance Criteria
  Stopping the program logs Uploader stopped. and exits cleanly.
 ```
 
-- What Claude proposed: Use a seperate "uploader" thread that sequentially uploads every file in the uploader queue (files that have been marked as "modified" by `watcher.py` file overwatch)
+- What Claude proposed: Use a separate "uploader" thread that sequentially uploads every file in the uploader queue (files that have been marked as "modified" by `watcher.py` file overwatch)
 - What I changed before approving: Changed the plan to include full folder structure mirroring to the remote obsidian vault. Ex. a file in the `Finance` folder changes, that same change should be reflected in that same folder within my remote vault.
 - Verification: Use my real remote obsidian folder as my `google_drive_folder_id` and see if local changes are reflected on my Google Drive.
-- One thing I learned: Its better to tweak the brief for a few more minutes to get exactly what you want than to generate mediocre code that doesn do exactly what you want it to do.
+- One thing I learned: It's better to tweak the brief for a few more minutes to get exactly what you want than to generate mediocre code that doesn do exactly what you want it to do.
 
 ## Task 8 — <TASK_NAME>
 
