@@ -21,6 +21,11 @@ class DriveClientError(Exception):
     pass
 
 
+def _escape_drive_query(value: str) -> str:
+    """Escape single quotes for Drive API query strings."""
+    return value.replace("'", "\\'")
+
+
 class DriveClient:
     def __init__(self, credentials_path: str, token_path: str) -> None:
         self._credentials_path = credentials_path
@@ -56,8 +61,9 @@ class DriveClient:
         logger.info("Authenticated with Google Drive successfully.")
 
     def get_or_create_folder(self, name: str, parent_id: str) -> str:
+        safe_name = _escape_drive_query(name)
         query = (
-            f"name='{name}' and '{parent_id}' in parents"
+            f"name='{safe_name}' and '{parent_id}' in parents"
             " and mimeType='application/vnd.google-apps.folder'"
             " and trashed=false"
         )
@@ -96,8 +102,9 @@ class DriveClient:
 
     def upload_file(self, local_path: str, drive_folder_id: str) -> str:
         file_name = os.path.basename(local_path)
+        safe_name = _escape_drive_query(file_name)
         query = (
-            f"name='{file_name}' and '{drive_folder_id}' in parents"
+            f"name='{safe_name}' and '{drive_folder_id}' in parents"
             " and trashed=false"
         )
         try:
